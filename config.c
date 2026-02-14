@@ -6,12 +6,12 @@
 #include "json.h"
 
 static void readColor( JSON_Value *val,Thoth_Config *cfg, int index){
-	int x = 0;
+	unsigned int x = 0;
 	if(!val->children ||  !val->children->string) return;
 	sscanf(val->children->string,"%x", &x);	
 	#ifdef WINDOWS_COMPILE
-		cfg->colors[index].r = (int)x << 16;
-		cfg->colors[index].g = (int)(x << 8) & 0xFF;
+		cfg->colors[index].r = (unsigned int)x & 0xFF0000;
+		cfg->colors[index].g = (unsigned int)x & 0x00FF00;
 		cfg->colors[index].b = x & 0xFF;
 	#else
 		cfg->colors[index].r = (x>>16)*1000/255;

@@ -1,20 +1,20 @@
 # linux
-CC=gcc
-EXECUTABLE=zimedit
-CFLAGS = -g -Wall -lm -DLINUX_COMPILE -DLINUX_INSTALL
-LIBS = -lncurses -lX11 -lpng -ljpeg -lz
-LDLIBS = -lm -static-libgcc $(LIBS)
-SOURCES=main.c text_editor.c log.c file_browser.c config.c x11.c json.c
-
-#CC = i686-w64-mingw32-gcc
-#EXECUTABLE=zim.exe
-# CFLAGS = -g -Wall -lm -DWINDOWS -DWINDOWS_INSTALL  -DWINDOWS_COMPILE -I/usr/i686-w64-mingw32/usr/include
-#LIBS = -lmingw32 -lkernel32 -luser32 -lgdi32  -mwindows -lncurses
-#EXECUTABLE=zim.exe
-#CFLAGS = -g  -lm -DWINDOWS -DWINDOWS_INSTALL  -DWINDOWS_COMPILE 
-#LIBS = -lmingw32 -lkernel32 -luser32 -lgdi32  -mwindows
+#CC=gcc
+#EXECUTABLE=zimedit
+#CFLAGS = -g -Wall -lm -DLINUX_COMPILE -DLINUX_INSTALL
+#LIBS = -lncurses -lX11 -lpng -ljpeg -lz
 #LDLIBS = -lm -static-libgcc $(LIBS)
-#SOURCES=main.c text_editor.c log.c file_browser.c config.c json.c
+#SOURCES=main.c text_editor.c log.c file_browser.c config.c x11.c json.c
+
+CC = i686-w64-mingw32-gcc
+EXECUTABLE=zim.exe
+ CFLAGS = -g -Wall -lm -DWINDOWS -DWINDOWS_INSTALL  -DWINDOWS_COMPILE -I/usr/i686-w64-mingw32/usr/include
+LIBS = -lmingw32 -lkernel32 -luser32 -lgdi32  -mwindows -lncurses
+EXECUTABLE=zim.exe
+CFLAGS = -g  -lm -DWINDOWS -DWINDOWS_INSTALL  -DWINDOWS_COMPILE 
+LIBS = -lmingw32 -lkernel32 -luser32 -lgdi32  -mwindows
+LDLIBS = -lm -static-libgcc $(LIBS)
+SOURCES=main.c text_editor.c log.c file_browser.c config.c json.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
