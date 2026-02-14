@@ -1496,7 +1496,6 @@ static void Paste(Thoth_Editor *t, Thoth_EditorCmd *c){
 	}
 
 	int clipboardLen = strlen(clipboard);
-
 	int k;
 
 	int lines = 0;
@@ -1505,7 +1504,7 @@ static void Paste(Thoth_Editor *t, Thoth_EditorCmd *c){
 	}
 
 	if(lines == t->nCursors){
-		
+
 		int curline = 0;
 		for(k = 0; k < t->nCursors; k++){
 			int start = curline;
@@ -2081,6 +2080,7 @@ static void UndoDeleteLine(Thoth_Editor *t, Thoth_EditorCmd *c){
 		t->cursors[k].pos = pos;
 
 	}
+	
 	SaveCursors(t, c);
 }
 
@@ -2098,6 +2098,7 @@ static void DeleteLine(Thoth_Editor *t, Thoth_EditorCmd *c){
 	int k = 0;
 	for(k = 0; k < t->nCursors; k++){
 	
+
 		Thoth_EditorCur *cursor = &t->cursors[k];
 	
 		int start;
@@ -2167,10 +2168,6 @@ static void Copy(Thoth_Editor *t, Thoth_EditorCmd *c){
 	}
 	if(buffer){
 		if(t->clipboard) free(t->clipboard);
-		bufferLen++;
-		buffer = realloc(buffer, bufferLen+1);
-		buffer[bufferLen-1] = '\n';
-		buffer[bufferLen] = 0;
 		t->clipboard=buffer;
 #ifdef LINUX_COMPILE
 		X11_Copy(&t->clipboard);
