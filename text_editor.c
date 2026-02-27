@@ -2731,22 +2731,24 @@ static void AddCharacters(Thoth_Editor *t, Thoth_EditorCmd *c){
 		}        
 	}
 
-	// not working
-	//if(keys[0] == '}' && t->nCursors == 1){
-		//int into = t->cursors[0].pos - GetCharsIntoLine(t->file->text, t->cursors[0].pos);
-		//int tabs = 0;
-		//int k;
-		//for(k = into; k < t->cursors[0].pos; k++, tabs++){
-			//if(t->file->text[k] != '\t') break;
-		//}
-		//if(k == t->cursors[0].pos) {
-			//int index = 0;
-			//RemoveStrFromText(t,&index,1);
-			//t->cursors[0].savedText = malloc(2);
-			//t->cursors[0].savedText[0] = '\t';
-			//t->cursors[0].savedText[1] = 0;
-		//}
-	//}
+	// not working elastic
+	if(keys[0] == '}' && t->nCursors == 1){
+		int into = t->cursors[0].pos - 
+		GetCharsIntoLine(t->file->text, t->cursors[0].pos);
+		int tabs = 0;
+		int k;
+		for(k = into; k < t->cursors[0].pos; k++){
+			if(t->file->text[k] != '\t') break;
+			tabs++;
+		}
+		if(k == t->cursors[0].pos && tabs > 0) {
+			int index = 0;
+			RemoveStrFromText(t,&index,1);
+			t->cursors[0].savedText = malloc(2);
+			t->cursors[0].savedText[0] = '\t';
+			t->cursors[0].savedText[1] = 0;
+		}
+	}
 
 	for(k = 0; k < t->nCursors; k++){
 		EraseAllSelectedText(t, &k, c);
