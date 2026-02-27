@@ -1483,6 +1483,7 @@ static void SelectNextWord(Thoth_Editor *t, Thoth_EditorCmd *c){
 				cursor->selection.len = len;
 			}
 		}
+		
 	}
 
 	ResolveCursorCollisions(t,0);
@@ -2950,10 +2951,11 @@ static void RedoCommands(Thoth_Editor *t, int num){
 
 static void RemoveExtraCursors(Thoth_Editor *t){
 	int k;
-	for(k = 1; k < t->nCursors; k++){
+	for(k = t->nCursors-2; k >= 0; k--){
 		if(t->cursors[k].savedText) free(t->cursors[k].savedText);
 		t->cursors[k].savedText = NULL;
 	}
+	memcpy(&t->cursors[0], &t->cursors[t->nCursors-1], sizeof(Thoth_EditorCur));
 	t->cursors = (Thoth_EditorCur *)realloc(t->cursors, sizeof(Thoth_EditorCur));
 	t->nCursors = 1;
 	UpdateScrollCenter(t);
@@ -4124,7 +4126,7 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 	char buffer[10];
 
 	for(y = t->logY, k = 0; y < t->linesY; y++, k++){
-		sprintf(buffer, "%.4i ", t->file->scroll+k);
+		sprintf(buffer, "%.4i", t->file->scroll+k);
 		Thoth_mvprintw(hdcMem, 0, t->logY+k, buffer, strlen(buffer));
 	}
 
