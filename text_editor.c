@@ -3304,7 +3304,7 @@ void Thoth_Editor_Init(Thoth_Editor *t,Thoth_Config *cfg){
 	init_pair(THOTH_COLOR_LOG_UNSELECTED, COLOR_BLACK, COLOR_WHITE);
 	init_pair(THOTH_COLOR_CURSOR,COLOR_BLACK ,COLOR_MAGENTA);
 	init_pair(THOTH_COLOR_FIND, COLOR_BLACK ,COLOR_WHITE);
-	init_pair(THOTH_COLOR_LINE_NUM, COLOR_WHITE ,COLOR_BLACK);
+	init_pair(THOTH_COLOR_LINE_NUM, COLOR_WHITE ,-1);
 	init_pair(THOTH_COLOR_LINENUM_CURSOR, COLOR_BLACK ,COLOR_GREEN);
 	init_pair(THOTH_TE_COLOR_BLACK, COLOR_BLACK ,-1);
 	init_pair(THOTH_TE_COLOR_WHITE, -1 ,-1);
@@ -4126,7 +4126,7 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 	char buffer[10];
 
 	for(y = t->logY, k = 0; y < t->linesY; y++, k++){
-		sprintf(buffer, "%.4i", t->file->scroll+k);
+		sprintf(buffer, "%.4i ", t->file->scroll+k);
 		Thoth_mvprintw(hdcMem, 0, t->logY+k, buffer, strlen(buffer));
 	}
 
