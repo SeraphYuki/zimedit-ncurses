@@ -1,14 +1,15 @@
-#include "windows.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <ncurses.h>
 #include "text_editor.h"
 #include "memory.h"
 #include "config.h"
 #include "thoth.h"
+#include "x11.h"
 
 enum {
 	THOTH_STATE_QUIT = 1,
@@ -19,191 +20,176 @@ enum {
 
 #define MOUSEUPDATETIME 50
 
+
+
+#ifndef LIBRARY_COMPILE
+// #ifdef LINUX_COMPILE || WINDOWS_COMPILE
+
 static char configpath_g[MAX_PATH_LEN];
 
-char *Thoth_GetConfigPath(char *relpath, char *name){
+char *Thoth_GetConfigPath(char *relpath){
+#if LINUX_COMPILE
+	char *path = getenv("HOME");
+#elif WINDOWS_COMPILE
 	char *path = getenv("APPDATA");
+#endif
 	if(relpath == NULL)
 		sprintf(configpath_g,"%s%s",path,THOTH_CONFIG_PATH);
 	else
 		sprintf(configpath_g,"%s%s",path,relpath);
-
-	CreateDirectory(configpath_g,NULL);
-	
-	sprintf(configpath_g, "%s\\%s",configpath_g,name);
 	// ignored if exists
 	return configpath_g;
 }
+// #endif 
+#endif
 
-void Keydown(Thoth_t *t, int wParam,LPARAM lParam){
+
+// static void MouseMotionUpdate(Thoth_t *t){
+// 	int mousetime = SDL_GetTicks() - t->mousemotiontime;
+// 	if(mousetime > MOUSEUPDATETIME) {
+// 		int mouseupdate = Thoth_Editor_SetCursorPosSelection(&t->te, t->mousex, t->mousey);
+// 		if(mouseupdate){
+// 			t->state = THOTH_STATE_UPDATEDRAW;
+// 			t->mousemotiontime = SDL_GetTicks(); //because timeout, we only wanna see if its been since the
+// 		}
+// 	}
+// }
+
+#ifdef LIBRARY_COMPILE
+void Event(Thoth_t *t, SDL_Event ev){
+#else
+void Event(Thoth_t *t){
+//	SDL_Event ev;
+//	if(t->te.logging == THOTH_LOGMODE_CONSOLE){
+//		if(!SDL_WaitEventTimeout(&ev, 1000)){
+//			t->state = THOTH_STATE_UPDATEDRAW;
+//			return;
+//		}
+//	} else if(t->mousedown){
+//		if(!SDL_WaitEventTimeout(&ev,MOUSEUPDATETIME)){
+//			MouseMotionUpdate(t);
+//			return;
+//		}
+//	} else {
+//		if(!SDL_WaitEvent(&ev)) return;
+//	}
+#endif
+	XEvent ev;
+	X11_NextEvent(&ev,t->te.clipboard);
+
+	
+	if(ev.type == KeyPress){
 		
 		int key = t->key & THOTH_ENTER_KEY ? t->key ^ THOTH_ENTER_KEY : t->key;
+		char *str = XKeysymToString(XLookupKeysym(&ev.xkey,0));
+
+		KeySym keysym;
+		Status status;
+		char buf[16];
+		int c = Xutf8LookupString(X11_GetIC(), &ev.xkey, buf, 15,&keysym, &status);
+		Xutf8LookupString(X11_GetIC(), &ev.xkey, buf, c,&keysym, &status);
+
+		if(strcmp(str, "Control_L") == 0) key |= THOTH_CTRL_KEY;
+		else if(strcmp(str, "Control_R") == 0) key |= THOTH_CTRL_KEY;
+		else if(strcmp(str, "Alt_L") == 0) key |= THOTH_ALT_KEY;
+		else if(strcmp(str, "Alt_R") == 0) key |= THOTH_ALT_KEY;
+		else if(strcmp(str, "Shift_L") == 0) key |= THOTH_SHIFT_KEY;
+		else if(strcmp(str, "Shift_R") == 0) key |= THOTH_SHIFT_KEY;
+		else if(strcmp(str, "Return") == 0) key |= THOTH_ENTER_KEY;
+		else if(strcmp(str, "Tab") == 0) key = 9;
+		else if(strcmp(str, "Escape") == 0) key = 27;
+		else if(strcmp(str, "BackSpace") == 0) key = 127;
+		else if(strcmp(str, "slash") == 0) key = (key&0xFF00)|'/';
+		else if(strcmp(str, "bracketleft") == 0) key = (key&0xFF00)|'[';
+		else if(strcmp(str, "bracketright") == 0) key = (key&0xFF00)|']';
+		else if(strcmp(str, "Right") == 0) key |= THOTH_ARROW_RIGHT;
+		else if(strcmp(str, "Left") == 0) key |= THOTH_ARROW_LEFT;
+		else if(strcmp(str, "Up") == 0) key |= THOTH_ARROW_UP;
+		else if(strcmp(str, "Down") == 0) key |= THOTH_ARROW_DOWN;
+		else if(strcmp(str, "") == 0) key |= THOTH_ARROW_DOWN;
+		else 
+			key = (key&0xFF00) | (str[0] & 0xFF);
+
+		if((key & THOTH_CTRL_KEY) == 0 && key != 127 && key != 27 && key != 9) 
+			key = (key&0xFF00) | (buf[0] & 0xFF);
 
 
-		if( (GetAsyncKeyState(VK_CONTROL) & 0x8000)) key |= THOTH_CTRL_KEY;
-		if( (GetAsyncKeyState(VK_MENU) & 0x8000)) key |= THOTH_ALT_KEY;
-		if( (GetAsyncKeyState(VK_SHIFT) & 0x8000)) key |= THOTH_SHIFT_KEY;
-		if((VK_RETURN == wParam)) key |= THOTH_ENTER_KEY;
-		if( (GetAsyncKeyState(VK_TAB) & 0x8000)) key = 9;
-		if( (GetAsyncKeyState(VK_ESCAPE) & 0x8000)) key = 27;
-		if( (GetAsyncKeyState(VK_BACK) & 0x8000)) key = 127;
+		t->key = key;
+		t->state = THOTH_STATE_UPDATE;     
 
-		if(key != 127 && key != 9 && key != 27){
-			if(GetAsyncKeyState(VK_OEM_2) & 0x8000)
-				key = (key&0xFF00) | ('/'&0xFF);
-			else if(GetAsyncKeyState(VK_OEM_4) & 0x8000)
-				key = (key&0xFF00) | ('['&0xFF);
-			else if(GetAsyncKeyState(VK_OEM_6) & 0x8000)
-				key = (key&0xFF00) | (']'&0xFF);
-			else if(  (GetAsyncKeyState(VK_RIGHT) & 0x8000))
-				key = (key & 0xFF00) | THOTH_ARROW_RIGHT;
-			else if(  (GetAsyncKeyState(VK_LEFT) & 0x8000))
-				key = (key & 0xFF00) | THOTH_ARROW_LEFT;
-			else if(  (GetAsyncKeyState(VK_UP) & 0x8000))
-				key = (key & 0xFF00) | THOTH_ARROW_UP;
-			else if(  (GetAsyncKeyState(VK_DOWN) & 0x8000))
-				key = (key & 0xFF00) | THOTH_ARROW_DOWN;
-			else
-				key = (key&0xFF00) | (tolower((wParam&0xFF)));
-		}
-		
-	  t->key = key;
-	  t->state = THOTH_STATE_UPDATE;     
-
-}
-void Keyup(Thoth_t *t, int wParam, LPARAM lParam){
-	
-	int update = t->key;
-
-	      if(wParam == VK_CONTROL) t->key ^= THOTH_CTRL_KEY;
-	      if(wParam == VK_MENU) t->key ^= THOTH_ALT_KEY;
-	      if(wParam == VK_SHIFT) t->key ^= THOTH_SHIFT_KEY;
-
-								//if((VK_SLASH == wParam) ||(wParam == VK_SLASH)) t->key = (t->key&0xFF00)|'/';
-								//if((VK_BRACKETLEFT == wParam) ||(wParam == VK_BRACKETLEFT)) t->key = (t->key&0xFF00)|'[';
-								//if((VK_BRACKETRIGHT == wParam) ||(wParam == VK_BRACKETRIGHT)) t->key = (t->key&0xFF00)|']';
-		if(t->key != 127 && t->key != 9 && t->key != 27){
-			if(VK_OEM_2 == wParam)
-				t->key ^=  ('/'&0xFF);
-			else if(VK_OEM_4 == wParam)
-				t->key ^=  ('['&0xFF);
-			else if(VK_OEM_6 == wParam)
-				t->key ^=  (']'&0xFF);
-	      else if(wParam == VK_RIGHT) t->key ^= THOTH_ARROW_RIGHT;
-	      else if(wParam == VK_LEFT) t->key ^= THOTH_ARROW_LEFT;
-	      else if(wParam == VK_UP) t->key ^= THOTH_ARROW_UP;
-	      else if(wParam == VK_DOWN) t->key ^= THOTH_ARROW_DOWN;
-			else
-				t->key ^=  (tolower((wParam&0xFF)));
-		}
-
-	//if(t->key != update)
-	  //t->state = THOTH_STATE_UPDATE;     	
+	} else if(ev.type == KeyRelease) {
+		char *str = XKeysymToString(XLookupKeysym(&ev.xkey,0));
+		if(strcmp(str, "Control_R") == 0) t->key ^= THOTH_CTRL_KEY;
+		else if(strcmp(str, "Control_L") == 0) t->key ^= THOTH_CTRL_KEY;
+		else if(strcmp(str, "Alt_L") == 0) t->key ^= THOTH_ALT_KEY;
+		else if(strcmp(str, "Alt_R") == 0) t->key ^= THOTH_ALT_KEY;
+		else if(strcmp(str, "Shift_L") == 0) t->key ^= THOTH_SHIFT_KEY;
+		else if(strcmp(str, "Shift_R") == 0) t->key ^= THOTH_SHIFT_KEY;
+		else if(strcmp(str, "Return") == 0) t->key ^= THOTH_ENTER_KEY;
+		else if(strcmp(str, "Right") == 0) t->key ^= THOTH_ARROW_RIGHT;
+		else if(strcmp(str, "Left") == 0) t->key ^= THOTH_ARROW_LEFT;
+		else if(strcmp(str, "Up") == 0) t->key ^= THOTH_ARROW_UP;
+		else if(strcmp(str, "Down") == 0) t->key ^= THOTH_ARROW_DOWN;
+	}
+//#ifndef LIBRARY_COMPILE
+//	} else if(ev.type == SDL_EVENT_WINDOW_RESIZED || ev.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED){
+//		Thoth_Graphics_ViewportXY(&t->graphics, 0, 0);
+//		Thoth_Graphics_Resize(&t->graphics, ev.window.data1, ev.window.data2);
+//		Thoth_Graphics_Clear(&t->graphics);
+//		Thoth_Editor_Draw(&t->te);        
+//		Thoth_Graphics_Render(&t->graphics);
+//		Window_Swap();
+//#endif
 }
 
 
-static HWND window;
-
-
-static HFONT    font;
-static int fontSize = 16;
-static int fontWidth = 16, fontHeight = 16;
-static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-static Thoth_t t; 
-
-HFONT Config_GetFont(){return font;}
-int Config_GetWidth(){ return fontWidth; } 
-int Config_GetHeight(){ return fontHeight; } 
-
-int Config_GetColor(int index, int pair){
-
-	  return ((t.te.cfg->colors[t.te.cfg->colorPairs[index][pair]].r & 0xFF0000) >> 16) |
-	(t.te.cfg->colors[t.te.cfg->colorPairs[index][pair]].g & 0x00FF00) |
-	         ((t.te.cfg->colors[t.te.cfg->colorPairs[index][pair]].b & 0x0000FF) << 16);
-}
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow){
-
-    WNDCLASSW wc = {
-	      .style         = CS_HREDRAW | CS_VREDRAW,
-	      .cbClsExtra    = 0,
-	      .cbWndExtra    = 0,
-	      .lpszClassName = L"ZIM",
-	      .hInstance     = hInstance,
-	      .hbrBackground = NULL,
-	      .lpszMenuName  = NULL,
-	      .lpfnWndProc   = WndProc,
-	      .hCursor       = LoadCursor(NULL, IDC_ARROW),
-	      .hIcon         = LoadIcon(NULL, IDI_APPLICATION),
-	  };
-
+#ifndef LIBRARY_COMPILE
+int main(int argc, char **argv){
+	Thoth_t t;
 	memset(&t,0,sizeof(Thoth_t));
+
+#ifdef LINUX_COMPILE
+	mkdir(Thoth_GetConfigPath(NULL), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
 
 	Thoth_Config_Read(&t.cfg);
 
 
 	Thoth_Editor_Init(&t.te, &t.cfg);
-	Thoth_Editor_LoadFile(&t.te, "text_editor.c");
-
-    RegisterClassW(&wc);
-	  window = CreateWindowW( wc.lpszClassName, (LPCWSTR)"ZIM",
-	      WS_OVERLAPPEDWINDOW | WS_VISIBLE ,
-	      CW_USEDEFAULT, CW_USEDEFAULT, 1000, 1000, NULL, NULL, hInstance, NULL);
-
-
-
-	  SetTimer(window, 1, 50, NULL);
-	  // font = CreateFont(fontSize, 0, 0, 0, 0, FALSE, FALSE, FALSE, 0, 0,
-	  //     0, 0, 0, TEXT("Consolas"));
-	  font = CreateFont(
-	  fontSize,          // nHeight
-	  0,               // nWidth
-	  0,               // nEscapement
-	  0,               // nOrientation
-	  FW_NORMAL,       // fnWeight
-	  FALSE,           // fdwItalic
-	  FALSE,           // fdwUnderline
-	  FALSE,           // fdwStrikeOut
-	  DEFAULT_CHARSET, // fdwCharSet
-	  OUT_TT_PRECIS,   // fdwOutputPrecision
-	  CLIP_DEFAULT_PRECIS, // fdwClipPrecision
-	  DEFAULT_QUALITY, // fdwQuality
-	  FIXED_PITCH | FF_MODERN, // fdwPitchAndFamily (ensures monospace characteristics)
-	  TEXT("Consolas")      // lpszFace (or L"Courier New")
-);
-	  HDC hdc = GetDC(NULL);
-	  SelectObject(hdc, font);
-
-    TEXTMETRIC tm;
-	  GetTextMetrics(hdc, &tm);
-
-    ReleaseDC(NULL, hdc);
+	X11_Init();
+	if(argc > 1){
+		int k;
+		for(k = 0; k < argc-1; k++)
+			Thoth_Editor_LoadFile(&t.te, argv[1+k]);
+	}
+	else if(t.te.nFiles == 0)
+		Thoth_Editor_LoadFile(&t.te, NULL);
 
 
-	  fontSize = tm.tmHeight;
-	  fontWidth = tm.tmAveCharWidth;
-	  fontHeight = tm.tmHeight;
+	// u32 currTime;
+	// u32 frames = 0;
+	// u32 lastSecond = SDL_GetTicks();
+	wclear(stdscr);
 
-    ShowWindow(window, nCmdShow);
-	  UpdateWindow(window);
+   Thoth_Editor_Draw(&t.te);        
 
-    MSG msg;
-	  BOOL ret;
+	while(t.state != THOTH_STATE_QUIT){
 
-    while((ret = GetMessage(&msg, NULL, 0, 0))) {
-	      if(ret == -1){
-	          return (int) msg.wParam;
-	      } else {
-	          TranslateMessage(&msg);
-	          DispatchMessage(&msg);
-	      }
-	  }
+	   // currTime = SDL_GetTicks();
 
+	   // int fps;
+	   // float frameTime;
+	   // if(currTime - lastSecond > 1000){
+	   //     fps = frames;
+	   //     frameTime = (currTime - lastSecond) / (float)frames;
+	   //     lastSecond = currTime;
+	   //     frames = 0;
+		   // printf("fps: %i | ms: %f\n", fps, frameTime);
+	   // }
 
-	  return (int) msg.wParam;
-}
+	   // ++frames;
 
-void Paint(HWND hwnd){
-
+	   Event(&t);
 
 	   if(t.state == THOTH_STATE_QUIT){
 			if(!Thoth_Editor_Destroy(&t.te))
@@ -214,77 +200,31 @@ void Paint(HWND hwnd){
 
 		   if(t.state == THOTH_STATE_UPDATE){
 			   int key = t.key;
+
 			   if((t.key >> 8) == (THOTH_SHIFT_KEY >> 8)){
 				   key = (t.key & 0xFF);
 			   }
-
 			   Thoth_Editor_Event(&t.te, key);
 				if(t.te.quit){
 					if(Thoth_Editor_Destroy(&t.te) > 0){
-	                      exit(0);
-						return;
+						break;
 					}
 					t.te.quit = 0;
 				}
+
+			   t.key = t.key & 0xff00;
+
+			   Thoth_Editor_Draw(&t.te);        
 			}    
-	         t.key = 0;
 		   t.state = THOTH_STATE_RUNNING;
 
 	   }
-
-
-	 Thoth_Editor_Draw(&t.te, hwnd);        
-
+	}
+	X11_WithdrawWindow();
+	X11_Close();
+	wclear(stdscr);
+	wrefresh(stdscr);
+	endwin();
+	return 0;
 }
-
-static void HandleChar(char wParam, HWND hwnd){
-
-    if((t.key >> 8) == 0 && t.key != 127 && t.key != 27 && t.key != 9){
-
-		t.key = (t.key&0xFF00) | (wParam & 0xFF);
-	      t.state = THOTH_STATE_UPDATE;     
-	  } 
-
-
-}
-
-
-static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
-
-    switch(msg){
-
-        case WM_DESTROY:
-	          return 0;
-
-        case WM_CREATE:
-	          break;
-
-        case WM_PAINT:
-	      	Paint(hwnd);
-	          break;
-
-        case WM_TIMER:
-	      	Paint(hwnd);
-	          break;
-
-        case WM_ERASEBKGND:
-	          return TRUE;
-
-        case WM_KEYDOWN:
-	      	Keydown(&t,wParam,lParam);
-	          RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
-	          break;
-
-        case WM_KEYUP:
-	          Keyup(&t,wParam,lParam);
-	          RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
-
-            break;
-	      case WM_CHAR:
-	          //HandleChar(wParam,hwnd);
-	          //RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
-	          break;
-	  }
-
-    return DefWindowProc(hwnd, msg, wParam, lParam);
-}
+#endif

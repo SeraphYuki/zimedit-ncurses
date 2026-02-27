@@ -148,6 +148,7 @@ const char *keywords[] = {
 };
 
 static char *basename(char *path){
+	
 	int j;
 	for(j = strlen(path)-1; j >= 0; j--)
 		if(path[j] == '/' || path[j] == '\\')
@@ -2153,8 +2154,10 @@ static void Copy(Thoth_Editor *t, Thoth_EditorCmd *c){
 			}
 			buffer = malloc(bufferLen+1);
 			buffer[bufferLen] = 0;
-			if(t->nCursors > 1) buffer[bufferLen - 1] = '\n';
-
+			if(t->nCursors > 1){
+				buffer[bufferLen - 1] = '\n';
+			}
+			
 			
 			memcpy(buffer, &t->file->text[start], end-start);
 		}
@@ -2594,6 +2597,7 @@ static void UndoAddCharacters(Thoth_Editor *t, Thoth_EditorCmd *c){
 
 
 static void LoggingRemoveCharacter(Thoth_Editor *t){
+
 	if(t->logging < THOTH_LOGMODE_MODES_INPUTLESS){
 		
 		t->logIndex = -1;
@@ -2727,21 +2731,22 @@ static void AddCharacters(Thoth_Editor *t, Thoth_EditorCmd *c){
 		}        
 	}
 
-	if(keys[0] == '}' && t->nCursors == 1){
-		int into = t->cursors[0].pos - GetCharsIntoLine(t->file->text, t->cursors[0].pos);
-		int tabs = 0;
-		int k;
-		for(k = into; k < t->cursors[0].pos; k++, tabs++){
-			if(t->file->text[k] != '\t') break;
-		}
-		if(k == t->cursors[0].pos) {
-			int index = 0;
-			RemoveStrFromText(t,&index,1);
-			t->cursors[0].savedText = malloc(2);
-			t->cursors[0].savedText[0] = '\t';
-			t->cursors[0].savedText[1] = 0;
-		}
-	}
+	// not working
+	//if(keys[0] == '}' && t->nCursors == 1){
+		//int into = t->cursors[0].pos - GetCharsIntoLine(t->file->text, t->cursors[0].pos);
+		//int tabs = 0;
+		//int k;
+		//for(k = into; k < t->cursors[0].pos; k++, tabs++){
+			//if(t->file->text[k] != '\t') break;
+		//}
+		//if(k == t->cursors[0].pos) {
+			//int index = 0;
+			//RemoveStrFromText(t,&index,1);
+			//t->cursors[0].savedText = malloc(2);
+			//t->cursors[0].savedText[0] = '\t';
+			//t->cursors[0].savedText[1] = 0;
+		//}
+	//}
 
 	for(k = 0; k < t->nCursors; k++){
 		EraseAllSelectedText(t, &k, c);
@@ -3143,6 +3148,8 @@ void Thoth_Editor_LoadFile(Thoth_Editor *t, char *pathRel){
 
 	if(!fp){
 		t->file->text = malloc(1);
+		strcpy(t->file->name, pathRel);
+		strcpy(t->file->path, pathRel);
 		t->file->text[0] = 0;
 		goto endfile;
 	}
