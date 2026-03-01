@@ -2189,9 +2189,9 @@ static void Copy(Thoth_Editor *t, Thoth_EditorCmd *c){
 #ifdef SDL_COMPILE
 		SDL_SetClipboardText(t->clipboard);
 #elif LINUX_COMPILE
-		free(buffer);
 		X11_Copy(&t->clipboard);
 #endif 
+
 	}
 }
 
@@ -2441,10 +2441,10 @@ static void AutoComplete(Thoth_Editor *t){
 
 	t->autoCompleteLen = 0;
 	if(t->autoCompleteSearchLen > 0 && t->nCursors == 1){
-
 		if(t->autoCompleteSearchLen > THOTH_MAX_AUTO_COMPLETE_STRLEN) return;
 
 		Thoth_EditorCur *c = &t->cursors[t->nCursors-1];
+
 
 		if(t->autoCompleteSearchLen > 3 && t->autoCompleteSearchLen < THOTH_MAX_AUTO_COMPLETE_STRLEN){
 
@@ -2475,11 +2475,12 @@ static void AutoComplete(Thoth_Editor *t){
 						break;
 					}
 				}
-
 				if(m != t->autoCompleteLen) {
 					findEnd += res + j;
 					continue;
 				}
+
+
 
 				t->autoComplete[t->autoCompleteLen].offset = findEnd+res;
 				t->autoComplete[t->autoCompleteLen].len = j;
@@ -2796,8 +2797,10 @@ static void ExpandAddCharacters(Thoth_Editor *t, Thoth_EditorCmd *c){
 	char *keys = &c->keys[c->num];
 	c->num = strlen(c->keys);
 
+
 	// make sure autocomplete only starts after a token, if canceled.
-	if(t->autoCompleteSearchLen > 0 || IsToken(t->file->text[t->cursors[0].pos-1])){
+	if(t->autoCompleteSearchLen > 0 || (t->cursors[0].pos > 0 &&
+		IsToken(t->file->text[t->cursors[0].pos-1]))){
 		for(k = 0; k < strlen(keys); k++){
 			if(!IsToken(keys[k])){
 				t->autoCompleteSearchLen++;
@@ -3850,10 +3853,8 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 	Thoth_attron(hdcMem,(THOTH_COLOR_NORMAL));
 	if(t->logging == THOTH_LOGMODE_CONSOLE && t->loggingText){
 		int logLen = strlen(t->loggingText);
-
 #ifndef SDL_COMPILE
 #ifdef LINUX_COMPILE
-
 		return;
 
 #endif
@@ -4230,15 +4231,12 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 #ifdef SDL_COMPILE
 	if(t->autoCompleteLen)
 		Thoth_Graphics_RenderNCurses(t->graphics);
-
 #endif
 	int j;
-
 	k = 0;
 	y = 0;
 
-	for(; j < t->autoCompleteLen; j++){
-
+	for(j = 0; j < t->autoCompleteLen; j++){
 		if(j == t->autoCompleteIndex)
 			Thoth_attron(hdcMem,(THOTH_COLOR_SELECTED));
 		else 
@@ -4269,7 +4267,6 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 			memcpy(buffer, &text[t->autoComplete[j].offset],t->autoComplete[j].len);
 			Thoth_mvprintw(hdcMem, t->logX+x, t->logY+y+j+1, buffer, THOTH_MAX_AUTO_COMPLETE_STRLEN);
 		}
-
 	}
 
 #ifdef SDL_COMPILE
@@ -4369,9 +4366,9 @@ void Thoth_Editor_Event(Thoth_Editor *t, unsigned int key){
 			// char *logpath = THOTH_LOGCOMPILEFILE;
 		    char cmdbuffer[512]; 
 			printf("\033[H\033[2J");
-			endwin();
 		    sprintf(cmdbuffer, "%s",t->cfg->makecmd);
 
+			endwin();
 		    if(t->loggingText) free(t->loggingText);
 		    t->loggingText = NULL;
 
