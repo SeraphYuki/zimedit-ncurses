@@ -1164,6 +1164,7 @@ static void SwitchFile(Thoth_Editor *t, Thoth_EditorCmd *c){
 	t->logIndex = 0;
 	StartLogging(t, THOTH_LOGMODE_SWITCH_FILE);
 }
+
 static void SaveAsFile(Thoth_Editor *t, Thoth_EditorCmd *c){
 	EndLogging(t);
 	t->loggingText = malloc(strlen(t->fileBrowser.directory)+1);
@@ -1218,6 +1219,7 @@ static int GetStartOfNextLine(char *text, int textLen, int cPos){
 	for(k = cPos; k < textLen; k++)
 		if(text[k] == '\n') { k++; break; }
 
+	if(k == textLen) k++;
 	return k;
 }
 
@@ -1837,11 +1839,28 @@ static void UndoIndentLine(Thoth_Editor *t, Thoth_EditorCmd *c){
 static void ToggleCommentMulti(Thoth_Editor *t, Thoth_EditorCmd *c){
 
 	if(!t->file->text) return;
+	if(t->nCursors > 1) return;
 	
 	t->file->textLen = strlen(t->file->text);
-	
 	LoadCursors(t,c);
-	if(t->cursors[0].selection.len == 0) return;
+
+
+	int k = 0;
+	if(t->cursors[0].selection.len == 0){
+		if(t->cursors[0].pos >= 2){
+			if(strncmp(&t->file->text[t->cursors[0].pos-2],"/**/",4) == 0){
+				t->cursors[0].pos += 2;
+				RemoveStrFromText(t, &k, 4);
+				SaveCursors(t,c);
+				return;
+			}
+		}
+		
+		AddStrToText(t, &k, "/**/");
+		t->cursors[0].pos -= 2;
+		SaveCursors(t,c);
+		return;
+	}
 
 	int startSelection = t->cursors[0].selection.startCursorPos;
 
@@ -1851,7 +1870,6 @@ static void ToggleCommentMulti(Thoth_Editor *t, Thoth_EditorCmd *c){
 	int endSelection = (t->cursors[0].selection.startCursorPos+t->cursors[0].selection.len);
 
 
-	int k = 0;
 	int m;
 	for(m = startSelection; m < endSelection; m++){
 		
@@ -1881,7 +1899,7 @@ static void ToggleCommentMulti(Thoth_Editor *t, Thoth_EditorCmd *c){
 	} else {
 		AddStrToText(t, &k, "*/");
 		t->cursors[0].selection.len+=2;
-			endSelection+=2;
+		endSelection+=2;
 		m += 2;
 	}
 
@@ -3259,7 +3277,6 @@ void Thoth_Editor_Init(Thoth_Editor *t,Thoth_Config *cfg){
 	Thoth_Graphics_init_pair(t->graphics,THOTH_COLOR_NUM, THOTH_COLOR_RED, THOTH_COLOR_BLACK);
 	Thoth_Graphics_init_pair(t->graphics,THOTH_COLOR_FUNCTION, THOTH_COLOR_YELLOW, THOTH_COLOR_BLACK);
 	Thoth_Graphics_init_pair(t->graphics,THOTH_COLOR_STRING, THOTH_COLOR_MAGENTA, THOTH_COLOR_BLACK);
-
 	Thoth_Graphics_init_pair(t->graphics,THOTH_COLOR_SELECTED, THOTH_COLOR_BLACK ,THOTH_COLOR_CYAN);
 	Thoth_Graphics_init_pair(t->graphics,THOTH_COLOR_SELECTED_DIRECTORY, THOTH_COLOR_RED ,THOTH_COLOR_CYAN);
 	Thoth_Graphics_init_pair(t->graphics,THOTH_COLOR_UNSELECTED_DIRECTORY, THOTH_COLOR_RED ,THOTH_COLOR_WHITE);
@@ -3330,6 +3347,7 @@ void Thoth_Editor_Init(Thoth_Editor *t,Thoth_Config *cfg){
 	AddCommand(t, CreateCommand((unsigned int[]){t->cfg->keybinds[THOTH_CloseFile]  , 0}, "", 0, SCR_NORM, CloseFile, NULL));
 	AddCommand(t, CreateCommand((unsigned int[]){t->cfg->keybinds[THOTH_SwitchFile] , 0}, "", 0, SCR_NORM, SwitchFile, NULL));
 	AddCommand(t, CreateCommand((unsigned int[]){t->cfg->keybinds[THOTH_SaveFile]  , 0}, "", 0, SCR_NORM, SaveFile, NULL));
+	AddCommand(t, CreateCommand((unsigned int[]){t->cfg->keybinds[THOTH_SaveAsFile]  , 0}, "", 0, SCR_NORM, SaveAsFile, NULL));
 
 	AddCommand(t, CreateCommand((unsigned int[]){t->cfg->keybinds[THOTH_ToggleComment]  , 0}, "", 0, SCR_NORM, ToggleComment, ToggleComment));
 	AddCommand(t, CreateCommand((unsigned int[]){t->cfg->keybinds[THOTH_ToggleCommentMulti]  , 0}, "", 0, SCR_NORM, ToggleCommentMulti, ToggleCommentMulti));
@@ -3624,7 +3642,7 @@ int Thoth_mvprintw(Thoth_Graphics* graphics, int x, int y, char *str, int len){
 		buffer[m] = str[k];
 		m++;
 	}
-	Thoth_Graphics_mvprintw(graphics,x,y,buffer,len);
+	Thoth_Graphics_mvprintw(graphics,x,y,buffer,m);
 	free(buffer);
 	return tabtospace*3 + len;
 }
@@ -3832,9 +3850,10 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 	Thoth_attron(hdcMem,(THOTH_COLOR_NORMAL));
 	if(t->logging == THOTH_LOGMODE_CONSOLE && t->loggingText){
 		int logLen = strlen(t->loggingText);
+
 #ifndef SDL_COMPILE
 #ifdef LINUX_COMPILE
-		endwin();
+
 		return;
 
 #endif
@@ -4046,7 +4065,7 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 					for(;k < (renderTo-1) && !(text[k] == '*' && text[k+1] == '/'); k++){
 						if(text[k] == '\n'){
 							Thoth_attron(hdcMem,(THOTH_COLOR_COMMENT));
-							Thoth_mvprintw(hdcMem, t->logX+x, t->logY+y, &text[ctOffset], k - ctOffset );
+							x += Thoth_mvprintw(hdcMem, t->logX+x, t->logY+y, &text[ctOffset], k - ctOffset );
 							Thoth_clrtoeol(hdcMem);
 							ctOffset = k+1;
 							x = 0;
@@ -4208,6 +4227,11 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 		Thoth_mvprintw(hdcMem, 0, t->logY+y, buffer, strlen(buffer));
 
 	}
+#ifdef SDL_COMPILE
+	if(t->autoCompleteLen)
+		Thoth_Graphics_RenderNCurses(t->graphics);
+
+#endif
 	int j;
 
 	k = 0;
@@ -4345,6 +4369,7 @@ void Thoth_Editor_Event(Thoth_Editor *t, unsigned int key){
 			// char *logpath = THOTH_LOGCOMPILEFILE;
 		    char cmdbuffer[512]; 
 			printf("\033[H\033[2J");
+			endwin();
 		    sprintf(cmdbuffer, "%s",t->cfg->makecmd);
 
 		    if(t->loggingText) free(t->loggingText);
