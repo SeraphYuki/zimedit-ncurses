@@ -19,13 +19,13 @@ static void readColor( JSON_Value *val,Thoth_Config *cfg, int index){
 		cfg->colors[index].b = (x&0xFF)*1000/255;
 
 	#endif
-	printf("%s %.6x\n", val->key,x);
+	//printf("%s %.6x\n", val->key,x);
 }
 
 	
 static void ReadCommand(JSON_Value *val, unsigned int *command){
 	*command = 0;
-	printf("%s\n",val->key);
+	//printf("%s\n",val->key);
 	val = val->children;
 	if(!val) return;
 	do{
@@ -39,7 +39,7 @@ static void ReadCommand(JSON_Value *val, unsigned int *command){
 			else if(strcmp(val->string, "ARROW_DOWN") == 0) *command |= THOTH_ARROW_DOWN;
 			else if(strcmp(val->string, "ARROW_LEFT") == 0) *command |= THOTH_ARROW_LEFT;
 			else if(strlen(val->string) == 1) *command |= val->string[0];
-			printf("\t%s\n", val->string);
+			//printf("\t%s\n", val->string);
 		}
 		val = val->next;
 	}while(val);

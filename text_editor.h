@@ -19,7 +19,6 @@
 #define THOTH_ARROW_LEFT  (unsigned int)0x2000
 #define THOTH_ARROW_RIGHT (unsigned int)0x4000
 #define THOTH_ENTER_KEY   (unsigned int)0x8000
-
 // #include "window.h"
 // #include "text.h"
 

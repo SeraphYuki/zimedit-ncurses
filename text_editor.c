@@ -1,12 +1,5 @@
-#ifdef LINUX_COMPILE
 #include "thoth.h"
 #include "log.h"
-#ifndef SDL_COMPILE
-#include "x11.h"
-#include <ncurses.h>
-#else
-#include <SDL3/SDL.h>
-#endif
 #include "file_browser.h"
 #include <stdio.h>
 #include <fcntl.h>
@@ -14,15 +7,28 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef SDL_COMPILE
+#endif
+#ifdef SDL_COMPILE
+#ifdef SDL2_COMPILE
+#include <SDL2/SDL.h>
+#else
+#include <SDL3/SDL.h>
+#endif
+#ifdef LINUX_COMPILE
+#include "x11.h"
 #include <termios.h>
+#include <ncurses.h>
+
 #ifdef __OpenBSD__
 #include <util.h>
 #else
+#include <sys/wait.h>
 #include <pty.h>
 #endif
-#include <sys/wait.h>
 #endif
-#ifdef WINDOWS_COMPILE
+#endif
+#ifdef WINDOWS_API_COMPILE
 #include <windows.h>
 #include "thoth.h"
 #include "log.h"
@@ -34,7 +40,7 @@
 #include <string.h>
 #endif
 #include <math.h>
-#ifdef WINDOWS_COMPILE
+#ifdef WINDOWS_API_COMPILE
 void clear(){}
 #endif
 enum {
@@ -613,7 +619,6 @@ static void ResolveCursorCollisions(Thoth_Editor *t, int *cursorIndex){
 }
 
 static void MoveCursorsAndSelection(Thoth_Editor *t, int pos, int by, int *cursorIndex){
-
 
 	int k;
 	for(k = 0; k < t->nCursors; k++){
@@ -1241,6 +1246,7 @@ static int MoveCursorDownLine(Thoth_Editor *t, Thoth_EditorCur *cursor){
 	int charsOnNextLine = (k - startOfNextLine);
 
 	cursor->pos = charsIntoLine <= charsOnNextLine ? startOfNextLine + charsIntoLine : startOfNextLine + charsOnNextLine;
+	cursor->pos = cursor->pos > t->file->textLen ? t->file->textLen : cursor->pos;
 	return 1;
 }
 
@@ -1531,6 +1537,7 @@ static void Paste(Thoth_Editor *t, Thoth_EditorCmd *c){
 #ifdef SDL_COMPILE
 	lines--;
 #endif
+
 	if(lines == t->nCursors){
 		
 		int curline = 0;
@@ -1553,13 +1560,11 @@ static void Paste(Thoth_Editor *t, Thoth_EditorCmd *c){
 		}		
 
 	} else {
-
 		for(k = 0; k < t->nCursors; k++){
-				EraseAllSelectedText(t, &k, c);
-				AddStrToText(t, &k, clipboard);
-				t->cursors[k].addedLen = clipboardLen;
+			EraseAllSelectedText(t, &k, c);
+			AddStrToText(t, &k, clipboard);
+			t->cursors[k].addedLen = clipboardLen;
 		}
-
 	}
 
 
@@ -2058,7 +2063,7 @@ static void ExpandSelectionLines(Thoth_Editor *t, Thoth_EditorCmd *c){
 		if(c->num < 0)
 			cursor->pos = GetStartOfPrevLine(t->file->text, cursor->pos);
 		else
-			cursor->pos = GetStartOfNextLine(t->file->text, t->file->textLen, cursor->pos)-1;
+			cursor->pos = GetStartOfNextLine(t->file->text, t->file->textLen, cursor->pos);
 
 		if(cursor->pos < 0) cursor->pos = 0;
 		if(cursor->pos > (int)t->file->textLen) cursor->pos = t->file->textLen;
@@ -2181,9 +2186,7 @@ static void Copy(Thoth_Editor *t, Thoth_EditorCmd *c){
 	}
 	if(buffer){
 		if(t->clipboard) free(t->clipboard);
-		bufferLen++;
 		buffer = realloc(buffer, bufferLen+1);
-		buffer[bufferLen-1] = '\n';
 		buffer[bufferLen] = 0;
 		t->clipboard=buffer;
 #ifdef SDL_COMPILE
@@ -2341,7 +2344,6 @@ static void AddStrToText(Thoth_Editor *t, int *cursorIndex, char *text){
 
 	t->file->unsaved = 1;
 
-
 	int len = strlen(text);
 
 	int pos = t->cursors[*cursorIndex].pos;
@@ -2374,8 +2376,6 @@ static void AddStrToText(Thoth_Editor *t, int *cursorIndex, char *text){
 		t->file->text[len] = 0;
 	}
 
-
-
 	t->file->text[textLen + len] = 0;
 
 
@@ -2399,8 +2399,8 @@ static void RemoveStrFromText(Thoth_Editor *t, int *cursorIndex, int len){
 
 	int textLen = strlen(t->file->text);
 
-	if(pos < textLen){
-		len = pos + len > textLen ? textLen - pos : len;
+	if(pos <= textLen){
+		len = pos + len >= textLen ? textLen - pos : len;
 		memcpy(&t->file->text[pos], &t->file->text[pos+len], textLen - (pos + len));
 	}
 
@@ -3110,7 +3110,7 @@ static Thoth_EditorFile *CreateTextEditorFile(char *path){
 		for(; k >= 0; k--){
 #ifdef LINUX_COMPILE
 			if(path[k] == '/'){
-#elif WINDOWS_COMPILE
+#elif WINDOWS_API_COMPILE
 			if(path[k] == '\\'){
 #else
 			if(path[k] == '/'){
@@ -3169,7 +3169,7 @@ void Thoth_Editor_LoadFile(Thoth_Editor *t, char *pathRel){
 
 
 	t->file->text = NULL;
-	FILE *fp = fopen(path, "rb");
+	FILE *fp = fopen(path, "r");
 
 	if(!fp){
 		t->file->text = malloc(1);
@@ -3603,7 +3603,7 @@ void Thoth_clrtoeol(WINDOW* hdcMem){
 }
 #endif
 #endif
-#ifdef WINDOWS_COMPILE
+#ifdef WINDOWS_API_COMPILE
 int Thoth_mvprintw(HDC hdcMem,int x, int y, char *str, int len){
 	int tabtospace = 0, k, m = 0;
 	for(k = 0; k < len; k++) if(str[k] == '\t') tabtospace++;
@@ -3668,7 +3668,7 @@ void Thoth_Editor_Draw(Thoth_Editor *t, Thoth_Graphics *hdcMem){
 	t->colsX = Thoth_Graphics_TextRows(t->graphics);
 #else
 
-#ifdef WINDOWS_COMPILE
+#ifdef WINDOWS_API_COMPILE
 
 void Thoth_Editor_Draw(Thoth_Editor *t,HWND hwnd){
 
@@ -4274,7 +4274,7 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 
 #else
 
-#ifdef WINDOWS_COMPILE
+#ifdef WINDOWS_API_COMPILE
 	  BitBlt(ps.hdc, cliRect.left, cliRect.top, cliRect.right-cliRect.left, cliRect.bottom - cliRect.top, hdcMem, 0, 0, SRCCOPY);
 	  SelectObject(hdcMem, hbmOld);
 
@@ -4367,8 +4367,9 @@ void Thoth_Editor_Event(Thoth_Editor *t, unsigned int key){
 		    char cmdbuffer[512]; 
 			printf("\033[H\033[2J");
 		    sprintf(cmdbuffer, "%s",t->cfg->makecmd);
-
+#ifndef SDL_COMPILE
 			endwin();
+#endif
 		    if(t->loggingText) free(t->loggingText);
 		    t->loggingText = NULL;
 
@@ -4385,7 +4386,7 @@ void Thoth_Editor_Event(Thoth_Editor *t, unsigned int key){
 
 			  }
 #endif
-#ifdef WINDOWS_COMPILE
+#ifdef WINDOWS_API_COMPILE
 		
 			chdir(t->fileBrowser.directory);
 			// char *logpath = THOTH_LOGCOMPILEFILE;
