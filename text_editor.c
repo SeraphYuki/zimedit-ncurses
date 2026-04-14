@@ -818,6 +818,7 @@ static void MoveLineUp(Thoth_Editor *t, Thoth_EditorCur *cursor){
 		if(startOfPrevLine > 0) startOfPrevLine++;
 		int prevLineLen = lineStart - startOfPrevLine;
 
+		if(startOfPrevLine < 0) return;
 		if(prevLineLen > charsOnLine){
 
 			char *tmp = malloc(charsOnLine);
@@ -855,6 +856,7 @@ static void MoveLineUp(Thoth_Editor *t, Thoth_EditorCur *cursor){
 		if(startOfPrevLine > 0) startOfPrevLine++;
 		int prevLineLen = lineStart - startOfPrevLine;
 
+		if(startOfPrevLine < 0) return;
 		if(prevLineLen > charsOnLine){
 
 			char *tmp = malloc(charsOnLine);
@@ -893,6 +895,7 @@ static void MoveLineDown(Thoth_Editor *t, Thoth_EditorCur *cursor){
 	//     Thoth_EditorCur *cursor = &t->cursors[k];            
 
 
+
 	if(cursor->selection.len == 0){
 
 		int lineStart = cursor->pos == 0 ? 0 : cursor->pos-1;
@@ -901,10 +904,11 @@ static void MoveLineDown(Thoth_Editor *t, Thoth_EditorCur *cursor){
 
 		int charsOnLine = cursor->pos;
 		for(; charsOnLine < t->file->textLen && t->file->text[charsOnLine] != '\n'; charsOnLine++);
-		if(charsOnLine >= t->file->textLen || t->file->text[charsOnLine] != '\n') return; // end of file dont move down
+		if(lineStart+charsOnLine >= t->file->textLen || t->file->text[lineStart+charsOnLine] != '\n') return; // end of file dont move down
 		charsOnLine = (charsOnLine - lineStart);
 
 		int startOfNextLine = lineStart+charsOnLine+1;
+
 		int nextLineLen = startOfNextLine;
 		for(; nextLineLen < t->file->textLen && t->file->text[nextLineLen] != '\n'; nextLineLen++);
 
@@ -937,7 +941,7 @@ static void MoveLineDown(Thoth_Editor *t, Thoth_EditorCur *cursor){
 
 		int charsOnLine = cursor->selection.startCursorPos+cursor->selection.len-1;
 		for(; charsOnLine < t->file->textLen && t->file->text[charsOnLine] != '\n'; charsOnLine++);
-		if(charsOnLine >= t->file->textLen || t->file->text[charsOnLine] != '\n') return; // end of file dont move down
+		if(lineStart+charsOnLine >= t->file->textLen || t->file->text[lineStart+charsOnLine] != '\n') return; // end of file dont move down
 
 		charsOnLine = (charsOnLine - lineStart);
 
