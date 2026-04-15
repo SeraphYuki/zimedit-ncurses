@@ -6,8 +6,14 @@
 #endif
 #include "types.h"
 #include "config.h"
+
+#ifndef SDL_COMPILE
+
 #ifdef LINUX_COMPILE
 #include "x11.h"
+#endif
+#else
+#include "graphics.h"
 #endif
 #include "file_browser.h"
 
@@ -65,8 +71,8 @@
  typedef struct Thoth_EditorCur Thoth_EditorCur;
 
  struct Thoth_EditorCmd {
-
-  unsigned int keyBinding[8];
+	char *name;
+	unsigned int keyBinding[8];
 	char *keys;
 	int num;
 	unsigned char scroll;
@@ -76,7 +82,7 @@
 	Thoth_EditorCur *hiddenCursors;
 	int nHiddenCursors;
 	void (*Execute)(Thoth_Editor *, Thoth_EditorCmd *c);
-	void (*Undo)(Thoth_Editor *, Thoth_EditorCmd *c);
+	void (*Undo)(Thoth_Editor *, Thoth_EditorCmd *s);
  };
 
  struct Thoth_EditorCur {
@@ -109,8 +115,10 @@ typedef struct {
 	int                     historyPos;
 	Thoth_EditorCmd       **history;
 	int                     sHistory;
+#ifndef SDL_COMPILE
 #ifdef LINUX_COMPILE
 	Image 				  img;
+#endif
 #endif
 	int                     textLen;
 	char                    name[MAX_FILENAME];
@@ -127,7 +135,7 @@ typedef struct {
 	Thoth_EditorFile          *file;
 	Thoth_FileBrowser       fileBrowser;
 	Thoth_EditorCmd         **lastCmd;  
-
+	FILE					*logFile;
 	int                     linesY;
 	int                     colsX;
 	int                     nCommands;
@@ -157,20 +165,33 @@ typedef struct {
 	int                     _stdout;
 	int                     _stderr;
 	char        			*clipboard; 
+#ifdef SDL_COMPILE
+	Thoth_Graphics 				*graphics;
+#endif
 };
 
 
 void Thoth_Editor_LoadFile(Thoth_Editor *t, char *path);
+#ifdef SDL_COMPILE
+void Thoth_Editor_Draw(Thoth_Editor *t, Thoth_Graphics *hdcMem);
+#else
+
 #ifdef WINDOWS_COMPILE
 void Thoth_Editor_Draw(Thoth_Editor *t,HWND hwnd);
 #elif LINUX_COMPILE
 void Thoth_Editor_Draw(Thoth_Editor *t);
 #endif
+
+#endif
 void Thoth_Editor_Event(Thoth_Editor *t,unsigned int key);
 int Thoth_Editor_Destroy(Thoth_Editor *t);
-void Thoth_Editor_Init(Thoth_Editor *t, Thoth_Config *cfg);
 void Thoth_Editor_SetCursorPos(Thoth_Editor *t, int x, int y);
 int Thoth_Editor_SetCursorPosSelection(Thoth_Editor *t, int x, int y);
 int Thoth_Editor_Scroll(Thoth_Editor *t, int y);
 void Thoth_Editor_SetCursorPosDoubleClick(Thoth_Editor *t, int x, int y);
- #endif
+#endif
+#ifdef SDL_COMPILE
+void Thoth_Editor_Init(Thoth_Editor *t, Thoth_Graphics *graphics, Thoth_Config *cfg);
+#else
+void Thoth_Editor_Init(Thoth_Editor *t, Thoth_Config *cfg);
+#endif
