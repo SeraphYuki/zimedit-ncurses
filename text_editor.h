@@ -71,7 +71,7 @@
  typedef struct Thoth_EditorCur Thoth_EditorCur;
 
  struct Thoth_EditorCmd {
-	char *name;
+	char name[64];
 	unsigned int keyBinding[8];
 	char *keys;
 	int num;
