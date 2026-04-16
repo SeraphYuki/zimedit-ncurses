@@ -1975,7 +1975,6 @@ static void ToggleComment(Thoth_Editor *t, Thoth_EditorCmd *c){
 		int startSelection = t->cursors[k].selection.startCursorPos;
 		int endSelection = t->cursors[k].selection.startCursorPos+t->cursors[k].selection.len;
 
-
 		int m;
 		for(m = startSelection; m < endSelection; m++){
 			
@@ -1983,7 +1982,7 @@ static void ToggleComment(Thoth_Editor *t, Thoth_EditorCmd *c){
 			 && m < endSelection) m++;
 
 			if(t->file->text[m] == '\n') continue;
-
+			
 			if(strncmp(&t->file->text[m], "//", 2) == 0) {
 				t->cursors[k].pos = m+2;
 				RemoveStrFromText(t, &k, 2);
@@ -3048,7 +3047,7 @@ static void ExecuteCommand(Thoth_Editor *t, Thoth_EditorCmd *c){
 		if(BufferExpandFuncs[k] == c->Execute
 			&& t->lastCmd && (*t->lastCmd)->Execute == BufferExpandFuncs[k]
 			 && ( ( c->keys && !IsToken(c->keys[0]) && 
-			 lastKeys && !IsToken((*lastKeys)[lastLen-1]))))
+			 lastKeys &&  lastLen > 0 && !IsToken((*lastKeys)[lastLen-1]))))
 			{
 			if(c->keys){
 				(*t->lastCmd)->num = lastLen;
@@ -3364,7 +3363,7 @@ void Thoth_Editor_Init(Thoth_Editor *t,Thoth_Config *cfg){
 #endif
 #endif
 
-	t->logFile = fopen(THOTH_LOGCOMPILEFILE, "wb");
+	t->logFile = fopen(THOTH_LOGCOMPILEFILE, "w");
 	AddCommand(t, CreateCommand("MoveLinesText_UP",(unsigned int[]){t->cfg->keybinds[THOTH_MoveLinesText_UP] , 0}, "", -1, SCR_NORM, MoveLinesText, UndoMoveLinesText));
 	AddCommand(t, CreateCommand("MoveLinesText_DOWN",(unsigned int[]){t->cfg->keybinds[THOTH_MoveLinesText_DOWN] , 0}, "", 1, SCR_NORM, MoveLinesText, UndoMoveLinesText));
 

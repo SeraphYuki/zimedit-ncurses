@@ -32,7 +32,7 @@ static void ReadCommand(JSON_Value *val, unsigned int *command){
 		if(val->type == JSON_STRING) {
 			if(strlen(val->string) == 1) *command |= val->string[0];
 			else if(strcmp(val->string, "CTRL") == 0) *command |= THOTH_CTRL_KEY;
-			else if(strcmp(val->string, "ENTER") == 0) *command |= 27;
+			else if(strcmp(val->string, "ENTER") == 0) *command |= THOTH_ENTER_KEY;
 			else if(strcmp(val->string, "SHIFT") == 0) *command |= THOTH_SHIFT_KEY;
 			else if(strcmp(val->string, "ALT") == 0) *command |= THOTH_ALT_KEY;
 			else if(strcmp(val->string, "ARROW_RIGHT") == 0) *command |= THOTH_ARROW_RIGHT;
