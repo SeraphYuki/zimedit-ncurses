@@ -126,6 +126,7 @@ static void EventEnter(Thoth_Editor *t, int key);
 static void EventCtrlEnter(Thoth_Editor *t, Thoth_EditorCmd *c);
 static void SaveCursors(Thoth_Editor *t, Thoth_EditorCmd *c);
 static void LoadCursors(Thoth_Editor *t, Thoth_EditorCmd *c);
+static void RemoveExtraCursorsCommand(Thoth_Editor *t, Thoth_EditorCmd *c);
 static void AddStrToText(Thoth_Editor *t, int *cursorIndex, char *text);
 static void RemoveStrFromText(Thoth_Editor *t, int *cursorIndex, int len);
 static void UndoRemoveCharacters(Thoth_Editor *t, Thoth_EditorCmd *c);
@@ -1974,14 +1975,13 @@ static void ToggleComment(Thoth_Editor *t, Thoth_EditorCmd *c){
 
 		int startSelection = t->cursors[k].selection.startCursorPos;
 		int endSelection = t->cursors[k].selection.startCursorPos+t->cursors[k].selection.len;
-
 		int m;
 		for(m = startSelection; m < endSelection; m++){
 			
 			while((t->file->text[m] == '\t' || t->file->text[m] == ' ')
 			 && m < endSelection) m++;
-
-			if(t->file->text[m] == '\n') continue;
+			
+			//if(t->file->text[m] == '\n') continue;
 			
 			if(strncmp(&t->file->text[m], "//", 2) == 0) {
 				t->cursors[k].pos = m+2;
@@ -2086,6 +2086,18 @@ static void ExpandSelectionLines(Thoth_Editor *t, Thoth_EditorCmd *c){
 
 		cursor->selection.len = cursor->pos - cursor->selection.startCursorPos;
 	}
+}
+
+static void RemoveExtraCursorsCommand(Thoth_Editor *t, Thoth_EditorCmd *c){
+	SaveCursors(t,c);
+	RemoveExtraCursors(t);
+	RemoveSelections(t);
+	//t->lastCmd = NULL;
+	t->autoCompleteIndex = 0;
+	UpdateScrollCenter(t);
+}
+static void UndoRemoveExtraCursorsCommand(Thoth_Editor *t, Thoth_EditorCmd *c){
+	LoadCursors(t,c);
 }
 
 static void SelectAll(Thoth_Editor *t, Thoth_EditorCmd *c){
@@ -3364,6 +3376,7 @@ void Thoth_Editor_Init(Thoth_Editor *t,Thoth_Config *cfg){
 #endif
 
 	t->logFile = fopen(THOTH_LOGCOMPILEFILE, "w");
+	AddCommand(t, CreateCommand("RemoveExtraCursors",(unsigned int[]){t->cfg->keybinds[THOTH_RemoveExtraCursors] , 0}, "", -1, SCR_NORM, RemoveExtraCursorsCommand, UndoRemoveExtraCursorsCommand));
 	AddCommand(t, CreateCommand("MoveLinesText_UP",(unsigned int[]){t->cfg->keybinds[THOTH_MoveLinesText_UP] , 0}, "", -1, SCR_NORM, MoveLinesText, UndoMoveLinesText));
 	AddCommand(t, CreateCommand("MoveLinesText_DOWN",(unsigned int[]){t->cfg->keybinds[THOTH_MoveLinesText_DOWN] , 0}, "", 1, SCR_NORM, MoveLinesText, UndoMoveLinesText));
 
@@ -4311,23 +4324,24 @@ void Thoth_Editor_Draw(Thoth_Editor *t){
 
 void Thoth_Editor_Event(Thoth_Editor *t, unsigned int key){
 
-	if(key == 27){ // escape
-		RemoveSelections(t);
-		RemoveExtraCursors(t);
-		EndLogging(t);
-		t->lastCmd = NULL;
-		t->autoCompleteIndex = 0;
-
-
-		UpdateScrollCenter(t);
-		return;
-	}
 
 	if(key >> 8 == THOTH_ENTER_KEY >> 8){ // enter
 		EventEnter(t, key);
 		return;
 	}
-	if(key>>8){
+
+
+	if(t->logging && key == 27){ // escape
+		RemoveSelections(t);
+		EndLogging(t);
+		RemoveExtraCursors(t);
+		t->lastCmd = NULL;
+		t->autoCompleteIndex = 0;
+		UpdateScrollCenter(t);
+		return;
+	}
+
+	if((key>>8) || key == 27){// escape
 
 		if(t->logging){
 

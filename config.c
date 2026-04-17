@@ -84,6 +84,8 @@ static void ConfigRead(JSON_Value *val, Thoth_Config *cfg){
 				 	ReadCommand(val, &cfg->keybinds[THOTH_MoveLinesText_UP]);
 				 else if(strcmp(val->key, "MoveLinesText_DOWN") == 0)
 				 	ReadCommand(val, &cfg->keybinds[THOTH_MoveLinesText_DOWN]);
+				 else if(strcmp(val->key, "RemoveExtraCursors") == 0)
+				 	ReadCommand(val, &cfg->keybinds[THOTH_RemoveExtraCursors]);
 				 else if(strcmp(val->key, "OpenFileBrowser") == 0)
 				 	ReadCommand(val, &cfg->keybinds[THOTH_OpenFileBrowser]);
 				 else if(strcmp(val->key, "OpenFileZim") == 0)
@@ -201,6 +203,7 @@ void Thoth_Config_Read(Thoth_Config *cfg){
 	strcpy(cfg->makecmd, "mingw32-make");
 	#endif
 
+	cfg->keybinds[THOTH_RemoveExtraCursors] = 27;
 	cfg->keybinds[THOTH_MoveLinesText_UP] = THOTH_CTRL_KEY|THOTH_SHIFT_KEY|THOTH_ARROW_UP;
 	cfg->keybinds[THOTH_MoveLinesText_DOWN] = THOTH_CTRL_KEY|THOTH_SHIFT_KEY|THOTH_ARROW_DOWN;
 	cfg->keybinds[THOTH_OpenFileBrowser] = THOTH_CTRL_KEY|THOTH_SHIFT_KEY|'o';

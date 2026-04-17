@@ -332,7 +332,6 @@ void X11_Paste(char **clipboard){
 	XConvertSelection(display,selection,UTF8,XSEL_DATA,clipboardWindow,CurrentTime),
 	XSync(display,0);
 	XEvent ev;
-
 	XNextEvent(display,&ev);
 
 	if(ev.type == SelectionNotify){
@@ -370,13 +369,20 @@ void X11_NextEvent(XEvent *ev,char *clipboard){
 		XSetInputFocus(display, window, RevertToParent, CurrentTime);
 		XSetICFocus(ic);
 	  } else if(ev->type == SelectionRequest){
-		
 		if(ev->xselectionrequest.selection == selection){
 			XSelectionRequestEvent *xsr = &ev->xselectionrequest;
 			XSelectionEvent event = {0}; 
-			event.type = SelectionNotify, event.display = xsr->display;
-			event.requestor = xsr->requestor, event.selection = xsr->selection, event.time = xsr->time;
-			event.target = xsr->target, event.property = xsr->property;
+			
+			event.type = SelectionNotify;
+			event.serial = xsr->serial;
+			event.send_event = xsr->send_event;
+			event.display = xsr->display;
+			event.requestor = xsr->requestor;
+			event.selection = xsr->selection;
+			event.time = xsr->time;
+			event.target = xsr->target;
+			event.property = xsr->property;
+			
 			if(event.target == targets_atom){
 				XChangeProperty(event.display,event.requestor,event.property,
 					4,32, PropModeReplace,(unsigned char*)&UTF8,1);
